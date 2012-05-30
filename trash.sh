@@ -1,13 +1,12 @@
 #!/bin/bash
 # TODO: figure out copyright
 # TODO: add verbose function
-# TODO: Check that all strings are $IFS safe.
 # Copyright (C) 2012 William J. Bowman <wjb@williamjbowman.com>
 
 usage()
 {
 cat << EOF
-Usage: $0 [OPTION]... FILE...
+Usage: ${0} [OPTION]... FILE...
 Trash (not really actually unlink) the FILE(s).
 
   -f, --force   ignore nonexistent files and arguments, never prompt
@@ -46,9 +45,9 @@ its contents.
 
 To remove a file whose name starts with a '-', for example '-foo',
 use one of these commands:
-  $0 -- -foo
+  ${0} -- -foo
 
-  $0 ./-foo
+  ${0} ./-foo
 
 Note that if you use trash to remove a file, it will totally be possible
 to recover all of its contents. The file will simply be renamed to
@@ -80,10 +79,10 @@ parse_arguments(){
 # Given a file, return it's absolute path.
 # TODO: Test
 get_absolute_path(){
-  pushd $(dirname "$1")
+  pushd $(dirname "${1}")
   ABS_PATH="`pwd`"
   popd
-  RETURN="$ABS_PATH"
+  RETURN="${ABS_PATH}"
   return 0
 }
 
@@ -91,7 +90,7 @@ get_absolute_path(){
 # .<filename>.<timestamp>.<ext>
 # TODO: Test
 create_file_name(){
-  BASE=$(basename "$1")
+  BASE=$(basename "${1}")
   TIME=$(date +%s)
   RETURN="${BASE}${TIME}${EXT}"
   BASE=""
@@ -102,9 +101,9 @@ create_file_name(){
 # Given a file, create it's full path in DIR.
 # TODO: Test
 create_trash_path(){
-  verbose("Creating path for $1 in $DIR")
-  get_absolute_path("$1")
-  mkdir -p "$DIR/$RETURN" && verbose("Path created: $DIR/$RETURN")
+  verbose("Creating path for ${1} in ${DIR}")
+  get_absolute_path("${1}")
+  mkdir -p "${DIR}/${RETURN}" && verbose("Path created: ${DIR}/${RETURN}")
   RETURN=""
   return 0
 }
@@ -112,13 +111,13 @@ create_trash_path(){
 # Given a file, create it's symlink in DIR.
 # TODO: Test
 symlink_file(){
-  verbose("Creating symlink for $1 in $DIR")
-  get_absolute_path("$1")
-  ABS_PATH="$RETURN"
-  pushd "$DIR/$ABS_PATH"
+  verbose("Creating symlink for ${1} in ${DIR}")
+  get_absolute_path("${1}")
+  ABS_PATH="${RETURN}"
+  pushd "${DIR}/${ABS_PATH}"
   create_file_name()
-  ln -s "$ABS_PATH/$RETURN" "$RETURN" && 
-    verbose("Link created at: $DIR/$ABS_PATH/$RETURN")
+  ln -s "${ABS_PATH}/${RETURN}" "${RETURN}" && 
+    verbose("Link created at: ${DIR}/${ABS_PATH}/${RETURN}")
   popd
   RETURN=""
   ABS_PATH=""
@@ -128,11 +127,12 @@ symlink_file(){
 # Given a file, rename it in it's current directory.
 # TODO: Test
 rename_file(){
-  verbose("Renaming $1")
-  get_absolute_path("$1")
-  pushd "$RETURN"
+  verbose("Renaming ${1}")
+  get_absolute_path("${1}")
+  pushd "${RETURN}"
   create_file_name()
-  rename $(basename "$1") "$RETURN" && verbose("$1 renamed to $RETURN")
+  rename $(basename "${1}") "${RETURN}" && 
+    verbose("${1} renamed to ${RETURN}")
   popd
   RETURN=""
   return 0
@@ -143,9 +143,27 @@ rename_file(){
 # TODO: Test
 # TODO: Make option aware.
 trash_file(){
-  verbose("Trashing $1")
-  rename_file("$1") && create_trash_path("$1") &&  symlink_file("$1") &&
-    verbose("$1 trashed!")
+  verbose("Trashing ${1}")
+  test_exists() # TODO: Create function
+  test_root() # TODO: Create function
+  test_one_file_system() # TODO: Create function
+  if [ -d "${1}" ]
+  then
+    trash_directory("${1}") # TODO: Create function
+  else
+    if [! $NOTRASHDIR ]; then 
+      create_trash_path("${1}") 
+    fi
+
+    if [ $ONLYTRASH ]
+    then
+      move_file("${1}") # TODO: Create function
+    else
+      rename_file("${1}") 
+      symlink_file("${1}")
+    fi
+    verbose("${1} trashed!")
+  fi
   return 0
 }
 
@@ -156,8 +174,9 @@ trash_file(){
 trash_files(){
   for file in "${1[@]}"; do
     trash_file("${file}")
+  done
 }
 
 # MAIN
-$FILES = parse_arguments()
-trash_files($FILES)
+FILES = parse_arguments()
+trash_files("${FILES}")
