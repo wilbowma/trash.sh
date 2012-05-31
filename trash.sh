@@ -1,7 +1,16 @@
 #!/bin/bash
-# TODO: figure out copyright
-# TODO: add verbose function
-# Copyright (C) 2012 William J. Bowman <wjb@williamjbowman.com>
+
+copyright(){
+cat << EOF
+Copyright (c) 2012 William J. Bowman <wjb@williamjbowman.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+EOF
+}
 
 usage()
 {
@@ -56,14 +65,27 @@ be found in the trash folder (default is ~/.trash).
 EOF
 }
 
-# TODO: Add copyright function. 
-# TODO: Figure out copyright.
+error(){
+  echo "$0: ERROR: ${1}">&2
+  exit ${2}
+}
+
+verbose(){
+  if [ $VERBOSE ]; then
+    echo "${1}"
+  fi
+}
+
 # TODO: DAMNIT I NEED SOME VIM MACROS/TEMPLATES.
 version(){ 
 cat << EOF
 trash 1.0
 
-Copyright (C) 2012 William J. Bowman.
+EOF
+
+copyright()
+
+cat << EOF
 
 Written by William J. Bowman <wjb@williamjbowman.com>
 EOF
@@ -71,9 +93,135 @@ EOF
 
 # Parse arguments and input, side-effecting global variables used to
 # options. Returns a list of files to trash.
+# TODO: Test
 parse_arguments(){
-  # TODO: Stub
-  echo "stub"
+  FORCE=
+  VERBOSE=
+  RETURN=
+  PARENTDEVICE=
+  RECURSIVE=
+  INTERACTIVE=
+  ONEFILESYSTEM=
+  NOPRESERVE=
+  PRESERVE=0
+  EXT=".trash"
+  DIR="${HOME}/.trash"
+  NOTRASHDIR=
+  ONLYTRASHDIR=
+  FILES=
+
+  TEMP=`getopt -o fiIrRvhe:t:no:: --long \
+force,,,recursive,,verbose,help,extension,trashdir,notrashdir,onlytrashdir,one-file-system,no-preserve-root,preserve-root,interactive,version::\ 
+     -n '$0' -- "$@"`
+
+  if [ $? != 0 ] ; then error "Parsing arguments failed" 2 ; fi
+
+  eval set -- "$TEMP"
+
+  while true ; do
+    case "$1" in
+      -f|--force) verbose "-f set" ; FORCE=0 ; shift 2 ;;
+      -i) verbose "-i set" ; INTERACTIVE=1 ; shift 1 ;;
+      -I) verbose "-I set" ; INTERACTIVE=2 ; shift 1 ;;
+      -r|--recursive) verbose "-r set"; RECURSIVE=0 ; shift 2 ;;
+      -v|--verbose) VERBOSE=0 ; verbose "-v set" ; shift 2 ;;
+      -h|--help) usage ; exit 0 ;;
+      -e|--extension) verbose "-e set to ${2}" ; EXT="${2}" ; shift 2 ;;
+      -t|--trashdir) verbose "-t set to ${2}" ; DIR="${2}" ; shift 2 ;;
+      -n|--notrashdir) verbose "-n set" ; NOTRASHDIR=0 ; shift 2 ;;
+      -o|--onlytrashdir) verbose "-o set" ; ONLYTRASHDIR=0 ; shift 2 ;;
+      --one-file-system) verbose "--one-file-system set" ;
+        ONEFILESYSTEM=0 ; shift 1 ;;
+      --no-preserve-root) verbose "--no-preserve-root set" ;
+        NOPRESERVEROOT=0 ; shift 1 ;;
+      --preserve-root) verbose "--preserve-root set" ; PRESERVEROOT=0 ;
+        shift 1 ;; 
+      --interactive) verbose "--interactive set" 
+          case "${2}" in
+            always) INTERACTIVE=1 ;;
+            never) INTERACTIVE= ;;
+            once) INTERACTIVE=2 ;;
+          esac 
+          shift 1 ;;
+      --version) version ; exit 0 ;;
+      --) shift ; break ;;
+      *) echo "Internal error!" ; exit 3 ;;
+    esac
+  done
+  FILES="${arg}"
+  return 0
+}
+
+# TODO: Test
+# Given a file, check if the file exists, and if that means we should
+# signal an error. If so, signal an error, otherwise don't.
+test_exists(){
+  if [! -e "${1}"]; then
+    if [! $FORCE ]; then
+      # TODO: Come up with error nums
+      error "File ${1} does not exists." 1 
+    fi
+    verbose "File does not exists, but -f set."
+    return 1
+  fi
+  return 0
+}
+
+# TODO: Test
+test_root(){
+  NAME=$(basename "${1}")
+  if [ "/" = "${NAME}" ]; then
+    if [ ! $NOPRESERVER ]; then
+      error "Preserve set, aborting to preserve /" 2
+    fi
+    verbose "No preserve set, trashing /"
+  fi
+  NAME=
+  return 0
+}
+
+# TODO: Test
+test_one_file_system(){
+  DEVICE=$(stat -c %D "${1}")
+  if [ "" -eq "${PARENTDEVICE}" ]; then
+    PARENTDEVICE="${1}"
+    DEVICE=
+    return 0
+  fi
+  if [ "${DEVICE}" != "${PARENTDEVICE}" ]; then
+    if [ $ONEFILESYSTEM ]; then
+      verbose "One filesystem specified, skipping ${1}"
+      DEVICE=
+      return 1
+    fi
+    verbose "One filesystem not specified, trashing this one too."
+  fi
+  DEVICE=
+  return 0
+}
+
+# TODO: Test
+# Prompts the user if they wish to delete the file, as long as
+# INTERACTIVE is not 0
+prompt(){
+  if [ "$INTERACTIVE" != 0 ]; then
+    if [ "" -eq "${2}" ]; then
+      $TYPE=`stat -c %F "${1}"`
+      STR="$0: trash $TYPE ${1}? (y/N) "
+    fi
+    read -D "${STR}" ANS
+    case "${ANS}" in 
+      y|Y)
+        verbose "Received ${ANS}; trashing file"
+        ANS=
+        return 0
+        ;;
+      *)
+        ANS=
+        return 1
+        ;;
+    esac
+  fi
 }
 
 # Given a file, return it's absolute path.
@@ -83,6 +231,7 @@ get_absolute_path(){
   ABS_PATH="`pwd`"
   popd
   RETURN="${ABS_PATH}"
+  ABS_PATH=
   return 0
 }
 
@@ -93,76 +242,109 @@ create_file_name(){
   BASE=$(basename "${1}")
   TIME=$(date +%s)
   RETURN="${BASE}${TIME}${EXT}"
-  BASE=""
-  TIME=""
+  BASE=
+  TIME=
+  return 0
+}
+
+# Given a file, returns the full path to it's home in the trash
+# TODO: Test
+get_trash_path(){
+  get_absolute_path "${1}"
+  RETURN="${DIR}/${RETURN}"
   return 0
 }
 
 # Given a file, create it's full path in DIR.
 # TODO: Test
 create_trash_path(){
-  verbose("Creating path for ${1} in ${DIR}")
-  get_absolute_path("${1}")
-  mkdir -p "${DIR}/${RETURN}" && verbose("Path created: ${DIR}/${RETURN}")
-  RETURN=""
+  verbose "Creating path for ${1} in ${DIR}"
+  get_trash_path "${1}"
+  mkdir -p "${RETURN}" && verbose "Path created: ${RETURN}"
+  RETURN=
   return 0
 }
 
 # Given a file, create it's symlink in DIR.
 # TODO: Test
 symlink_file(){
-  verbose("Creating symlink for ${1} in ${DIR}")
-  get_absolute_path("${1}")
+  verbose "Creating symlink for ${1} in ${DIR}"
+  get_absolute_path "${1}"
   ABS_PATH="${RETURN}"
   pushd "${DIR}/${ABS_PATH}"
-  create_file_name()
+  create_file_name
   ln -s "${ABS_PATH}/${RETURN}" "${RETURN}" && 
-    verbose("Link created at: ${DIR}/${ABS_PATH}/${RETURN}")
+    verbose "Link created at: ${DIR}/${ABS_PATH}/${RETURN}"
   popd
-  RETURN=""
-  ABS_PATH=""
+  RETURN=
+  ABS_PATH=
   return 0
 }
 
 # Given a file, rename it in it's current directory.
 # TODO: Test
 rename_file(){
-  verbose("Renaming ${1}")
-  get_absolute_path("${1}")
+  verbose "Renaming ${1}"
+  get_absolute_path "${1}"
   pushd "${RETURN}"
-  create_file_name()
-  rename $(basename "${1}") "${RETURN}" && 
-    verbose("${1} renamed to ${RETURN}")
+  create_file_name
+  NAME=$(basename "${1}")
+  rename "${NAME}" "${RETURN}" && 
+    verbose "${1} renamed to ${RETURN}"
   popd
-  RETURN=""
+  RETURN=
+  NAME=
   return 0
+}
+
+# TODO: Test
+trash_directory(){
+  if [! $RECURSIVE ] then
+    verbose "-r not set, so not trashing directory ${1}"
+    return 1
+  fi
+  verbose "-rset, trashing directory ${1}"
+  trash_files "${1}/*"
+  return 0
+}
+
+move_file(){
+  verbpse "Moving file to trash, as --onlytrash is set."
+  get_trash_path
+  mv "${1}" "${RETURN}"
 }
 
 # Given a file, rename and symlink it, according to the specified
 # options.
 # TODO: Test
-# TODO: Make option aware.
 trash_file(){
-  verbose("Trashing ${1}")
-  test_exists() # TODO: Create function
-  test_root() # TODO: Create function
-  test_one_file_system() # TODO: Create function
+  verbose "Trashing ${1}"
+  prompt "${1}"
+  if [ "$?" != "0" ]; then
+    return 0
+  fi
+  test_exists "${1}"
+  if [ "$?" != "0" ]; then
+    return 0
+  fi
+  test_root "${1}"
   if [ -d "${1}" ]
   then
-    trash_directory("${1}") # TODO: Create function
+    test_one_file_system "${1}"
+    trash_directory "${1}"
   else
     if [! $NOTRASHDIR ]; then 
-      create_trash_path("${1}") 
+      create_trash_path "${1}"
     fi
 
     if [ $ONLYTRASH ]
     then
-      move_file("${1}") # TODO: Create function
+      move_file "${1}"
     else
-      rename_file("${1}") 
-      symlink_file("${1}")
+      rename_file "${1}"
+      symlink_file "${1}"
     fi
-    verbose("${1} trashed!")
+    verbose "${1} trashed!"
   fi
   return 0
 }
@@ -170,13 +352,21 @@ trash_file(){
 # Given a list of files, rename and symlink them according to the
 # specified options.
 # TODO: Test
-# TODO: make option aware.
 trash_files(){
+  if [ "${#1[@]}" -gt 2 ]
+  then
+    prompt "${0}: remove all arguments?"
+  else
+    if [ $RECURSIVE ]; then
+      prompt "${0}: remove all arguments recursively?"
+    fi
+  fi 
+
   for file in "${1[@]}"; do
-    trash_file("${file}")
+    trash_file "${file}"
   done
 }
 
 # MAIN
-FILES = parse_arguments()
-trash_files("${FILES}")
+parse_arguments
+trash_files "${FILES[@]}"
