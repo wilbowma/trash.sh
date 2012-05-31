@@ -120,7 +120,6 @@ parse_arguments(){
   DIR="${HOME}/.trash"
   NOTRASHDIR=
   ONLYTRASHDIR=
-  FILES=
 
   local TEMP
   TEMP=`getopt -o fiIrRvhe:t:no --long \
@@ -162,7 +161,6 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
       *) echo "Invalid argument: ${1}" ; exit 3 ;;
     esac
   done
-  FILES=`echo "${@}"`
   return 0
 }
 
@@ -357,8 +355,7 @@ trash_file(){
 # Given a list of files, rename and symlink them according to the
 # specified options.
 trash_files(){
-  local FILES=(`echo "${1}"`)
-  if [ "${#FILES[*]}" -gt 3 ]
+  if [ "${#@}" -gt 3 ]
   then
     prompt "${0}: remove all arguments?"
   else
@@ -367,11 +364,11 @@ trash_files(){
     fi
   fi 
 
-  for file in ${FILES[@]}; do
+  for file in "${@}"; do
     trash_file "${file}"
   done
 }
 
 # MAIN
 parse_arguments "${@}"
-trash_files "${FILES}"
+trash_files "${@}"
