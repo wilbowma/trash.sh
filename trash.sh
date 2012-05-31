@@ -132,22 +132,22 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
 
   while true ; do
     case "$1" in
-      -f|--force) verbose "-f set" ; FORCE=0 ; shift 1 ;;
-      -i) verbose "-i set" ; INTERACTIVE=1 ; shift 1 ;;
-      -I) verbose "-I set" ; INTERACTIVE=2 ; shift 1 ;;
-      -R|-r|--recursive) verbose "-r set"; RECURSIVE=0 ; shift 1 ;;
-      -v|--verbose) VERBOSE=0 ; verbose "-v set" ; shift 1 ;;
+      -f|--force) verbose "-f set" ; FORCE=0 ; shift ;;
+      -i) verbose "-i set" ; INTERACTIVE=1 ; shift ;;
+      -I) verbose "-I set" ; INTERACTIVE=2 ; shift ;;
+      -R|-r|--recursive) verbose "-r set"; RECURSIVE=0 ; shift ;;
+      -v|--verbose) VERBOSE=0 ; verbose "-v set" ; shift ;;
       -h|--help) usage ; exit 0 ;;
       -e|--extension) verbose "-e set to ${2}" ; EXT="${2}" ; shift 2 ;;
       -t|--trashdir) verbose "-t set to ${2}" ; DIR="${2}" ; shift 2 ;;
-      -n|--notrashdir) verbose "-n set" ; NOTRASHDIR=0 ; shift 1 ;;
-      -o|--onlytrashdir) verbose "-o set" ; ONLYTRASHDIR=0 ; shift 1 ;;
+      -n|--notrashdir) verbose "-n set" ; NOTRASHDIR=0 ; shift ;;
+      -o|--onlytrashdir) verbose "-o set" ; ONLYTRASHDIR=0 ; shift ;;
       --one-file-system) verbose "--one-file-system set" ;
-        ONEFILESYSTEM=0 ; shift 1 ;;
+        ONEFILESYSTEM=0 ; shift ;;
       --no-preserve-root) verbose "--no-preserve-root set" ;
-        NOPRESERVE=0 ; shift 1 ;;
+        NOPRESERVE=0 ; shift ;;
       --preserve-root) verbose "--preserve-root set" ; PRESERVEROOT=0 ;
-        shift 1 ;; 
+        shift ;; 
       --interactive) verbose "--interactive set" 
           case "${2}" in
             always) INTERACTIVE=1 ;;
@@ -161,6 +161,9 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
       *) echo "Invalid argument: ${1}" ; exit 3 ;;
     esac
   done
+  RETURN=
+  i=0
+  for file do RETURN[$i]="${file}"; let i+=1; done
   return 0
 }
 
@@ -179,7 +182,7 @@ test_exists(){
 }
 
 test_root(){
-  local NAME=$(basename "${1}")
+  local NAME=$(basename -- "${1}")
   if [ "/" = "${NAME}" ]; then
     if [ ! $NOPRESERVE ]; then
       error "Preserve set, aborting to preserve /" 2
@@ -190,7 +193,7 @@ test_root(){
 }
 
 test_one_filesystem(){
-  local DEVICE=$(stat -c %D "${1}")
+  local DEVICE=$(stat -c %D -- "${1}")
   if [ "" = "${PARENTDEVICE}" ]; then
     PARENTDEVICE="${1}"
     DEVICE=
@@ -215,7 +218,7 @@ prompt(){
     fi
     if [ "" = "${2}" ]
     then
-      local TYPE=`stat -c %F "${1}"`
+      local TYPE=`stat -c %F -- "${1}"`
       local STR="$0: trash $TYPE ${1}? (y/N) "
     else
       STR="${2}"
@@ -237,7 +240,7 @@ prompt(){
 
 # Given a file, return it's absolute path.
 get_absolute_path(){
-  pushd $(dirname "${1}")>/dev/null
+  pushd $(dirname -- "${1}")>/dev/null
   local ABS_PATH=`pwd`
   popd>/dev/null
   RETURN="${ABS_PATH}"
@@ -247,7 +250,7 @@ get_absolute_path(){
 # Given a file, return a new name in the form:
 # <filename>.<timestamp>.<ext>
 create_file_name(){
-  local BASE=$(basename "${1}")
+  local BASE=$(basename -- "${1}")
   local TIME=$(date +%s)
   RETURN="${BASE}.${TIME}.${EXT}"
   return 0
@@ -274,11 +277,9 @@ symlink_file(){
   verbose "Creating symlink for ${1} in ${DIR}"
   get_absolute_path "${1}"
   local ABS_PATH="${RETURN}"
-  pushd "${DIR}/${ABS_PATH}">/dev/null
   create_file_name "${1}"
-  ln -s "${ABS_PATH}/${RETURN}" "${RETURN}" && 
+  ln -s -- "${ABS_PATH}/${RETURN}" "${DIR}/${ABS_PATH}/${RETURN}" && 
     verbose "Link created at: ${DIR}/${ABS_PATH}/${RETURN}"
-  popd>/dev/null
   RETURN=
   return 0
 }
@@ -287,12 +288,11 @@ symlink_file(){
 rename_file(){
   verbose "Renaming ${1}"
   get_absolute_path "${1}"
-  pushd "${RETURN}">/dev/null
+  local ABS_PATH="${RETURN}"
   create_file_name "${1}"
-  local NAME=$(basename "${1}")
-  mv "${NAME}" ".${RETURN}" && 
+  local NAME=$(basename -- "${1}")
+  mv -- "${ABS_PATH}/${NAME}" "${ABS_PATH}/.${RETURN}" && 
     verbose "${1} renamed to .${RETURN}"
-  popd>/dev/null
   RETURN=
   return 0
 }
@@ -312,7 +312,7 @@ trash_directory(){
 move_file(){
   verbpse "Moving file to trash, as --onlytrash is set."
   get_trash_path
-  mv "${1}" "${RETURN}"
+  mv -- "${1}" "${RETURN}"
 }
 
 # Given a file, rename and symlink it, according to the specified
@@ -371,4 +371,4 @@ trash_files(){
 
 # MAIN
 parse_arguments "${@}"
-trash_files "${@}"
+trash_files "${RETURN[@]}"
