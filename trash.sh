@@ -1,4 +1,17 @@
 #!/bin/bash
+# This really ought to be written in a real language. Bash issues with
+# arrays are the lolzyist. So are bash issues for everything else.
+#
+# This script is meant to be a drop-in alias for rm, that will, instead
+# of unlinking a file, rename is to .<filename>.<timestamp>.trash in
+# it's current directory, and create a symlink to the file in ~/.trash.
+# The folder and file extension are configurable, as are whether the
+# file is renamed, symlinked, or simply moved into the trash folder.
+#
+# Example:
+# trash.sh -rf ~/stuff/stuff-i-dont-want
+# trash.sh -rf ~/stuff/stuff-i-dont-want/*
+# trash.sh -rf --no-preserve-root /
 
 copyright(){
 cat << EOF
@@ -109,6 +122,7 @@ parse_arguments(){
   ONLYTRASHDIR=
   FILES=
 
+  local TEMP
   TEMP=`getopt -o fiIrRvhe:t:no --long \
 force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-file-system,no-preserve-root,preserve-root,interactive::,version\
   -n "${0}" -- "${@}"`
@@ -167,19 +181,18 @@ test_exists(){
 }
 
 test_root(){
-  NAME=$(basename "${1}")
+  local NAME=$(basename "${1}")
   if [ "/" = "${NAME}" ]; then
     if [ ! $NOPRESERVE ]; then
       error "Preserve set, aborting to preserve /" 2
     fi
     verbose "No preserve set, trashing /"
   fi
-  NAME=
   return 0
 }
 
 test_one_filesystem(){
-  DEVICE=$(stat -c %D "${1}")
+  local DEVICE=$(stat -c %D "${1}")
   if [ "" = "${PARENTDEVICE}" ]; then
     PARENTDEVICE="${1}"
     DEVICE=
@@ -188,12 +201,10 @@ test_one_filesystem(){
   if [ "${DEVICE}" != "${PARENTDEVICE}" ]; then
     if [ $ONEFILESYSTEM ]; then
       verbose "One filesystem specified, skipping ${1}"
-      DEVICE=
       return 1
     fi
     verbose "One filesystem not specified, trashing this one too."
   fi
-  DEVICE=
   return 0
 }
 
@@ -206,21 +217,20 @@ prompt(){
     fi
     if [ "" = "${2}" ]
     then
-      TYPE=`stat -c %F "${1}"`
-      STR="$0: trash $TYPE ${1}? (y/N) "
+      local TYPE=`stat -c %F "${1}"`
+      local STR="$0: trash $TYPE ${1}? (y/N) "
     else
       STR="${2}"
     fi
     echo "${STR}"
+    local ANS
     read ANS
     case "${ANS}" in 
       y|Y)
         verbose "Received ${ANS}; trashing file"
-        ANS=
         return 0
         ;;
       *)
-        ANS=
         return 1
         ;;
     esac
@@ -230,21 +240,18 @@ prompt(){
 # Given a file, return it's absolute path.
 get_absolute_path(){
   pushd $(dirname "${1}")>/dev/null
-  ABS_PATH=`pwd`
+  local ABS_PATH=`pwd`
   popd>/dev/null
   RETURN="${ABS_PATH}"
-  ABS_PATH=
   return 0
 }
 
 # Given a file, return a new name in the form:
 # <filename>.<timestamp>.<ext>
 create_file_name(){
-  BASE=$(basename "${1}")
-  TIME=$(date +%s)
+  local BASE=$(basename "${1}")
+  local TIME=$(date +%s)
   RETURN="${BASE}.${TIME}.${EXT}"
-  BASE=
-  TIME=
   return 0
 }
 
@@ -268,14 +275,13 @@ create_trash_path(){
 symlink_file(){
   verbose "Creating symlink for ${1} in ${DIR}"
   get_absolute_path "${1}"
-  ABS_PATH="${RETURN}"
+  local ABS_PATH="${RETURN}"
   pushd "${DIR}/${ABS_PATH}">/dev/null
   create_file_name "${1}"
   ln -s "${ABS_PATH}/${RETURN}" "${RETURN}" && 
     verbose "Link created at: ${DIR}/${ABS_PATH}/${RETURN}"
   popd>/dev/null
   RETURN=
-  ABS_PATH=
   return 0
 }
 
@@ -285,12 +291,11 @@ rename_file(){
   get_absolute_path "${1}"
   pushd "${RETURN}">/dev/null
   create_file_name "${1}"
-  NAME=$(basename "${1}")
+  local NAME=$(basename "${1}")
   mv "${NAME}" ".${RETURN}" && 
     verbose "${1} renamed to .${RETURN}"
   popd>/dev/null
   RETURN=
-  NAME=
   return 0
 }
 
@@ -352,7 +357,7 @@ trash_file(){
 # Given a list of files, rename and symlink them according to the
 # specified options.
 trash_files(){
-  FILES=(`echo "${1}"`)
+  local FILES=(`echo "${1}"`)
   if [ "${#FILES[*]}" -gt 3 ]
   then
     prompt "${0}: remove all arguments?"
