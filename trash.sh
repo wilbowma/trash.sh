@@ -148,7 +148,7 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
       *) echo "Invalid argument: ${1}" ; exit 3 ;;
     esac
   done
-  FILES="${@}"
+  FILES=`echo "${@}"`
   return 0
 }
 
@@ -294,7 +294,6 @@ rename_file(){
   return 0
 }
 
-# TODO: Test
 trash_directory(){
   if [ ! $RECURSIVE ]; then
     verbose "-r not set, so not trashing directory ${1}"
@@ -302,8 +301,8 @@ trash_directory(){
     return 1
   fi
   verbose "-r set, trashing directory ${1}"
-  trash_files "${1}/*"
-  trash_file "${1}"
+  trash_files "${1}"/*
+  trash_file "${1}" 0
   return 0
 }
 
@@ -326,7 +325,10 @@ trash_file(){
     return 0
   fi
   test_root "${1}"
-  if [ -d "${1}" ]
+  # XXX: Second parameter is a hack so I can reuse this function for
+  # trashing directories. Without, trying to do so would cause infinite
+  # recursion.
+  if [ -d "${1}" ] && [ ! $2 ]
   then
     test_one_filesystem "${1}"
     trash_directory "${1}"
@@ -349,10 +351,9 @@ trash_file(){
 
 # Given a list of files, rename and symlink them according to the
 # specified options.
-# TODO: Test
 trash_files(){
-  TEMP="${1}"
-  if [ "${#TEMP[*]}" -gt 3 ]
+  FILES=(`echo "${1}"`)
+  if [ "${#FILES[*]}" -gt 3 ]
   then
     prompt "${0}: remove all arguments?"
   else
@@ -361,15 +362,11 @@ trash_files(){
     fi
   fi 
 
-  for file in "${TEMP}"; do
+  for file in ${FILES[@]}; do
     trash_file "${file}"
   done
 }
 
 # MAIN
 parse_arguments "${@}"
-#trash_file "${FILES[0]}"
-  for file in "${FILES[@]}"; do
-    echo $file
-  done
-#trash_files "${FILES[@]}"
+trash_files "${FILES}"
