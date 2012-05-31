@@ -170,7 +170,7 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
 # Given a file, check if the file exists, and if that means we should
 # signal an error. If so, signal an error, otherwise don't.
 test_exists(){
-  if [ ! -e "${1}" ]; then
+  if [ ! -e "${1}" ] && [ ! -h "${1}" ]; then
     if [ ! $FORCE ]; then
       # TODO: Come up with error nums
       error "File ${1} does not exists." 1 
