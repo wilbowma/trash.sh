@@ -306,9 +306,12 @@ trash_directory(){
   verbose "-r set, trashing directory ${1}"
   # Test dir is empty
   if [ "$(ls -A ${1})" ]; then
-    verbose "${1} is not empty, trashing sub-files"
+    verbose "${1} not empty, trashing sub-files"
+    shopt -s dotglob
     trash_files "${1}"/*
+    shopt -u dotglob
   fi
+ 
   trash_file "${1}" 0
   return 0
 }
