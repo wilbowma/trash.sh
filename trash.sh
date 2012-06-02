@@ -304,7 +304,11 @@ trash_directory(){
     return 1
   fi
   verbose "-r set, trashing directory ${1}"
-  trash_files "${1}"/*
+  # Test dir is empty
+  if [ "$(ls -A ${1})" ]; then
+    verbose "${1} is not empty, trashing sub-files"
+    trash_files "${1}/*"
+  fi
   trash_file "${1}" 0
   return 0
 }
