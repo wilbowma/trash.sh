@@ -119,7 +119,7 @@ parse_arguments(){
   EXT="trash"
   DIR="${HOME}/.trash"
   NOTRASHDIR=
-  ONLYTRASHDIR=
+  ONLYTRASH=
 
   local TEMP
   TEMP=`getopt -o fiIrRvhe:t:no --long \
@@ -141,7 +141,7 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
       -e|--extension) verbose "-e set to ${2}" ; EXT="${2}" ; shift 2 ;;
       -t|--trashdir) verbose "-t set to ${2}" ; DIR="${2}" ; shift 2 ;;
       -n|--notrashdir) verbose "-n set" ; NOTRASHDIR=0 ; shift ;;
-      -o|--onlytrashdir) verbose "-o set" ; ONLYTRASHDIR=0 ; shift ;;
+      -o|--onlytrashdir) verbose "-o set" ; ONLYTRASH=0 ; shift ;;
       --one-file-system) verbose "--one-file-system set" ;
         ONEFILESYSTEM=0 ; shift ;;
       --no-preserve-root) verbose "--no-preserve-root set" ;
@@ -307,14 +307,14 @@ trash_directory(){
   # Test dir is empty
   if [ "$(ls -A ${1})" ]; then
     verbose "${1} is not empty, trashing sub-files"
-    trash_files "${1}/*"
+    trash_files "${1}"/*
   fi
   trash_file "${1}" 0
   return 0
 }
 
 move_file(){
-  verbpse "Moving file to trash, as --onlytrash is set."
+  verbose "Moving file to trash, as --onlytrash is set."
   get_trash_path
   mv -- "${1}" "${RETURN}"
 }
