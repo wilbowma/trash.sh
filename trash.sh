@@ -80,7 +80,7 @@ EOF
 
 error(){
   echo "$0: ERROR: ${1}">&2
-  exit ${2}
+  exit "${2}"
 }
 
 verbose(){
@@ -171,7 +171,7 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
 # signal an error. If so, signal an error, otherwise don't.
 test_exists(){
   if [ ! -e "${1}" ] && [ ! -h "${1}" ]; then
-    if [ ! $FORCE ]; then
+    if [ ! ${FORCE} ]; then
       # TODO: Come up with error nums
       error "File ${1} does not exists." 1 
     fi
@@ -241,7 +241,7 @@ prompt(){
 # Given a file, return it's absolute path.
 get_absolute_path(){
   pushd $(dirname -- "${1}")>/dev/null
-  local ABS_PATH=`pwd`
+  local ABS_PATH="`pwd`"
   popd>/dev/null
   RETURN="${ABS_PATH}"
   return 0
@@ -305,10 +305,10 @@ trash_directory(){
   fi
   verbose "-r set, trashing directory ${1}"
   # Test dir is empty
-  if [ "$(ls -A ${1})" ]; then
+  if [ $(ls -A "${1}") ]; then
     verbose "${1} not empty, trashing sub-files"
     shopt -s dotglob
-    trash_files "${1}"/*
+    trash_files "${1}/*"
     shopt -u dotglob
   fi
  
