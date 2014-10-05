@@ -58,7 +58,7 @@ Trash (not really actually unlink) the FILE(s).
                         made inside that path.
   -n, --notrashdir      Do not symlink the file to the trash directory.
   -o, --onlytrashdir    Instead of renaming the file, move it to the
-                        trash directory completley. 
+                        trash directory completley.
 
 
 By default, trash does not remove directories.  Use the --recursive (-r
@@ -90,7 +90,7 @@ verbose(){
 }
 
 # TODO: DAMNIT I NEED SOME VIM MACROS/TEMPLATES.
-version(){ 
+version(){
 cat << EOF
 trash 1.0
 
@@ -147,14 +147,14 @@ force,recursive,verbose,help,extension:,trashdir:,notrashdir,onlytrashdir,one-fi
       --no-preserve-root) verbose "--no-preserve-root set" ;
         NOPRESERVE=0 ; shift ;;
       --preserve-root) verbose "--preserve-root set" ; PRESERVEROOT=0 ;
-        shift ;; 
-      --interactive) verbose "--interactive set" 
+        shift ;;
+      --interactive) verbose "--interactive set"
           case "${2}" in
             always) INTERACTIVE=1 ;;
             never) INTERACTIVE= ;;
             once) INTERACTIVE=2 ;;
             "") INTERACTIVE=1 ;;
-          esac 
+          esac
           shift 2 ;;
       --version) version ; exit 0 ;;
       --) shift ; break ;;
@@ -173,7 +173,7 @@ test_exists(){
   if [ ! -e "${1}" ] && [ ! -h "${1}" ]; then
     if [ ! ${FORCE} ]; then
       # TODO: Come up with error nums
-      error "File ${1} does not exists." 1 
+      error "File ${1} does not exists." 1
     fi
     verbose "File does not exists, but -f set."
     return 1
@@ -226,7 +226,7 @@ prompt(){
     echo "${STR}"
     local ANS
     read ANS
-    case "${ANS}" in 
+    case "${ANS}" in
       y|Y)
         verbose "Received ${ANS}; trashing file"
         return 0
@@ -240,7 +240,8 @@ prompt(){
 
 # Given a file, return it's absolute path.
 get_absolute_path(){
-  pushd $(dirname -- "${1}")>/dev/null
+  local bla=$(dirname -- "${1}")
+  pushd "${bla}">/dev/null
   local ABS_PATH="`pwd`"
   popd>/dev/null
   RETURN="${ABS_PATH}"
@@ -278,7 +279,7 @@ symlink_file(){
   get_absolute_path "${1}"
   local ABS_PATH="${RETURN}"
   create_file_name "${1}"
-  ln -s -- "${ABS_PATH}/${RETURN}" "${DIR}/${ABS_PATH}/${RETURN}" && 
+  ln -s -- "${ABS_PATH}/${RETURN}" "${DIR}/${ABS_PATH}/${RETURN}" &&
     verbose "Link created at: ${DIR}/${ABS_PATH}/${RETURN}"
   RETURN=
   return 0
@@ -291,7 +292,7 @@ rename_file(){
   local ABS_PATH="${RETURN}"
   create_file_name "${1}"
   local NAME=$(basename -- "${1}")
-  mv -- "${ABS_PATH}/${NAME}" "${ABS_PATH}/.${RETURN}" && 
+  mv -- "${ABS_PATH}/${NAME}" "${ABS_PATH}/.${RETURN}" &&
     verbose "${1} renamed to .${RETURN}"
   RETURN=
   return 0
@@ -305,13 +306,13 @@ trash_directory(){
   fi
   verbose "-r set, trashing directory ${1}"
   # Test dir is empty
-  if [ $(ls -A "${1}") ]; then
+  if ls -A "${1}" >/dev/null; then
     verbose "${1} not empty, trashing sub-files"
     shopt -s dotglob
     trash_files "${1}/*"
     shopt -u dotglob
   fi
- 
+
   trash_file "${1}" 0
   return 0
 }
@@ -343,12 +344,11 @@ trash_file(){
     test_one_filesystem "${1}"
     trash_directory "${1}"
   else
-    if [ ! $NOTRASHDIR ]; then 
+    if [ ! $NOTRASHDIR ]; then
       create_trash_path "${1}"
     fi
 
-    if [ $ONLYTRASH ]
-    then
+    if [ $ONLYTRASH ]; then
       move_file "${1}"
     else
       rename_file "${1}"
@@ -369,7 +369,7 @@ trash_files(){
     if [ $RECURSIVE ]; then
       prompt "${0}: remove all arguments recursively?"
     fi
-  fi 
+  fi
 
   for file in "${@}"; do
     trash_file "${file}"
