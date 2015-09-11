@@ -2,16 +2,6 @@
 # This really ought to be written in a real language. Bash issues with
 # arrays are the lolzyist. So are bash issues for everything else.
 #
-# This script is meant to be a drop-in alias for rm, that will, instead
-# of unlinking a file, rename is to .<filename>.<timestamp>.trash in
-# it's current directory, and create a symlink to the file in ~/.trash.
-# The folder and file extension are configurable, as are whether the
-# file is renamed, symlinked, or simply moved into the trash folder.
-#
-# Example:
-# trash.sh -rf ~/stuff/stuff-i-dont-want
-# trash.sh -rf ~/stuff/stuff-i-dont-want/*
-# trash.sh -rf --no-preserve-root /
 
 copyright(){
 cat << EOF
