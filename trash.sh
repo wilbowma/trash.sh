@@ -269,7 +269,7 @@ symlink_file(){
   get_absolute_path "${1}"
   local ABS_PATH="${RETURN}"
   create_file_name "${1}"
-  ln -s -- "${ABS_PATH}/${RETURN}" "${DIR}/${ABS_PATH}/${RETURN}" &&
+  ln -s -- "${ABS_PATH}/.${RETURN}" "${DIR}/${ABS_PATH}/${RETURN}" &&
     verbose "Link created at: ${DIR}/${ABS_PATH}/${RETURN}"
   RETURN=
   return 0
